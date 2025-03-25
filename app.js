@@ -235,10 +235,12 @@ app.post("/users/sign_in", async (req, res) => {
       JWT_SECRET
     );
 
+    // 將token放在Authorization標頭中，而非放在響應主體中
+    res.set("Authorization", `Bearer ${token}`);
+
     // 返回成功訊息和令牌
     res.status(200).json({
       message: "登入成功",
-      token,
     });
   } catch (error) {
     console.error("登入錯誤:", error);
