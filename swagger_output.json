@@ -19,6 +19,10 @@
     {
       "name": "Todos",
       "description": "代辦事項 router"
+    },
+    {
+      "name": "Upload",
+      "description": "上傳 router"
     }
   ],
   "schemes": [
@@ -281,6 +285,52 @@
           }
         }
       }
+    },
+    "/upload/": {
+      "get": {
+        "tags": [
+          "Upload"
+        ],
+        "description": "上傳檔案確認頁",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "description": "JWT Token",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Upload"
+        ],
+        "description": "上傳檔案",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "description": "JWT Token",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
     }
   },
   "definitions": {
@@ -330,7 +380,7 @@
         "todo": {
           "type": "object",
           "properties": {
-            "content": {
+            "title": {
               "type": "string",
               "example": "string"
             }
@@ -344,7 +394,7 @@
         "todo": {
           "type": "object",
           "properties": {
-            "content": {
+            "title": {
               "type": "string",
               "example": "string"
             }

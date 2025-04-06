@@ -14,7 +14,11 @@ const doc = {
     {
       name: "Todos",
       description: "代辦事項 router",
-    }
+    },
+    {
+      name: "Upload",
+      description: "上傳 router",
+    },
   ],
   definitions: {
     Users: {
@@ -52,12 +56,12 @@ const doc = {
     // },
     AddUserData: {
       todo: {
-        content: "string",
+        title: "string",
       },
     },
     UpdateUserData: {
       todo: {
-        content: "string",
+        title: "string",
       },
     },
   },

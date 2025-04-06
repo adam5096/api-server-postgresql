@@ -5,6 +5,7 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 const cors = require("cors");
 const dotenv = require("dotenv");
+const uploadRouter = require("./routes/upload");
 
 // Load environment variables
 dotenv.config();
@@ -552,7 +553,10 @@ app.delete("/todos/:id", verifyToken, async (req, res) => {
   }
 });
 
-// 定期清理過期令牌黑名單
+// 上傳檔案
+app.use("/upload", uploadRouter);
+
+
 setInterval(async () => {
   try {
     const result = await pool.query(
