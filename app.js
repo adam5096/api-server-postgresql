@@ -304,6 +304,7 @@ app.get("/todos", verifyToken, async (req, res) => {
       completed: todo.completed,
       createdAt: todo.created_at,
       updatedAt: todo.updated_at,
+      fileUrl: todo.fileurl
     }));
 
     // 返回用戶的待辦事項列表
