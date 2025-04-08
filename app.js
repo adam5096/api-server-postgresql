@@ -65,6 +65,7 @@ const initDB = async () => {
         user_id INTEGER REFERENCES users(id),
         title TEXT NOT NULL,
         completed BOOLEAN DEFAULT FALSE,
+        fileurl TEXT,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE
       )
@@ -354,10 +355,13 @@ app.post("/todos", verifyToken, async (req, res) => {
         continue; // 跳過無效數據
       }
 
+      // 檢查fileUrl是否存在，如果不存在則設為null（可選欄位）
+      const fileUrl = item.fileUrl !== undefined ? item.fileUrl : null;
+
       // 插入新待辦事項到資料庫
       const insertResult = await pool.query(
-        "INSERT INTO todos (user_id, title, completed, created_at) VALUES ($1, $2, $3, $4) RETURNING *",
-        [userId, title, item.completed === true, new Date().toISOString()]
+        "INSERT INTO todos (user_id, title, completed, created_at, fileurl) VALUES ($1, $2, $3, $4, $5) RETURNING *",
+        [userId, title, item.completed === true, new Date().toISOString(), fileUrl]
       );
 
       console.log("POST: 插入結果:", insertResult);
@@ -371,6 +375,7 @@ app.post("/todos", verifyToken, async (req, res) => {
         title: newTodo.title,
         completed: newTodo.completed,
         createdAt: newTodo.created_at,
+        fileUrl: newTodo.fileurl
       });
     }
 

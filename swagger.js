@@ -57,11 +57,13 @@ const doc = {
     AddUserData: {
       todo: {
         title: "string",
+        fileUrl: "string",
       },
     },
     UpdateUserData: {
       todo: {
         title: "string",
+        fileUrl: "string",
       },
     },
   },
