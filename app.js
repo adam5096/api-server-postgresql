@@ -35,7 +35,9 @@ pool.query("SELECT NOW()", (err, res) => {
   }
 });
 
-app.use(cors());
+app.use(cors({
+    exposedHeaders: ['Authorization']  // 確保 Authorization header 被暴露
+}));
 
 // 使用 JSON 解析，使開發人員更便利取用處理前端傳來的資料，
 app.use(express.json()); // JSON 數據
@@ -47,29 +49,133 @@ app.use("/api-doc", swaggerUi.serve, swaggerUi.setup(swaggerFile));
 // 初始化數據庫表格
 const initDB = async () => {
   try {
-    // 創建用戶表
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        nickname VARCHAR(255) UNIQUE NOT NULL,
-        email VARCHAR(255) UNIQUE NOT NULL,
-        password VARCHAR(255) NOT NULL,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    // 檢查 users 表格是否存在
+    const usersTableExists = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'users'
       )
     `);
 
-    // 創建待辦事項表
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS todos (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id),
-        title TEXT NOT NULL,
-        completed BOOLEAN DEFAULT FALSE,
-        fileurl TEXT,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP WITH TIME ZONE
+    if (!usersTableExists.rows[0].exists) {
+      // 如果表格不存在，創建新表格
+      await pool.query(`
+        CREATE TABLE users (
+          id SERIAL PRIMARY KEY,
+          nickname VARCHAR(255) UNIQUE NOT NULL,
+          email VARCHAR(255) UNIQUE NOT NULL,
+          password VARCHAR(255) NOT NULL,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+    } else {
+      // 如果表格存在，檢查並更新表格結構
+      await pool.query(`
+        DO $$
+        BEGIN
+          -- 檢查並添加 id 欄位
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                        WHERE table_name = 'users' AND column_name = 'id') THEN
+            ALTER TABLE users ADD COLUMN id SERIAL PRIMARY KEY;
+          END IF;
+
+          -- 檢查並添加 nickname 欄位
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                        WHERE table_name = 'users' AND column_name = 'nickname') THEN
+            ALTER TABLE users ADD COLUMN nickname VARCHAR(255) UNIQUE NOT NULL;
+          END IF;
+
+          -- 檢查並添加 email 欄位
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                        WHERE table_name = 'users' AND column_name = 'email') THEN
+            ALTER TABLE users ADD COLUMN email VARCHAR(255) UNIQUE NOT NULL;
+          END IF;
+
+          -- 檢查並添加 password 欄位
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                        WHERE table_name = 'users' AND column_name = 'password') THEN
+            ALTER TABLE users ADD COLUMN password VARCHAR(255) NOT NULL;
+          END IF;
+
+          -- 檢查並添加 created_at 欄位
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                        WHERE table_name = 'users' AND column_name = 'created_at') THEN
+            ALTER TABLE users ADD COLUMN created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
+          END IF;
+        END $$;
+      `);
+    }
+
+    // 檢查 todos 表格是否存在
+    const tableExists = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'todos'
       )
     `);
+
+    if (!tableExists.rows[0].exists) {
+      // 如果表格不存在，創建新表格
+      await pool.query(`
+        CREATE TABLE todos (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER REFERENCES users(id),
+          title TEXT NOT NULL,
+          completed BOOLEAN DEFAULT FALSE,
+          fileurl TEXT,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP WITH TIME ZONE
+        )
+      `);
+    } else {
+      // 如果表格存在，檢查並更新表格結構
+      await pool.query(`
+        DO $$
+        BEGIN
+          -- 檢查並添加 fileurl 欄位
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                        WHERE table_name = 'todos' AND column_name = 'fileurl') THEN
+            ALTER TABLE todos ADD COLUMN fileurl TEXT;
+          END IF;
+
+          -- 檢查並添加 updated_at 欄位
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                        WHERE table_name = 'todos' AND column_name = 'updated_at') THEN
+            ALTER TABLE todos ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE;
+          END IF;
+
+          -- 檢查並添加 created_at 欄位
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                        WHERE table_name = 'todos' AND column_name = 'created_at') THEN
+            ALTER TABLE todos ADD COLUMN created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
+          END IF;
+
+          -- 檢查並添加 completed 欄位
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                        WHERE table_name = 'todos' AND column_name = 'completed') THEN
+            ALTER TABLE todos ADD COLUMN completed BOOLEAN DEFAULT FALSE;
+          END IF;
+
+          -- 檢查並添加 title 欄位
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                        WHERE table_name = 'todos' AND column_name = 'title') THEN
+            ALTER TABLE todos ADD COLUMN title TEXT NOT NULL;
+          END IF;
+
+          -- 檢查並添加 user_id 欄位
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                        WHERE table_name = 'todos' AND column_name = 'user_id') THEN
+            ALTER TABLE todos ADD COLUMN user_id INTEGER REFERENCES users(id);
+          END IF;
+
+          -- 檢查並添加 id 欄位
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                        WHERE table_name = 'todos' AND column_name = 'id') THEN
+            ALTER TABLE todos ADD COLUMN id SERIAL PRIMARY KEY;
+          END IF;
+        END $$;
+      `);
+    }
 
     // 創建令牌黑名單表
     await pool.query(`
@@ -122,18 +228,16 @@ app.post("/users", async (req, res) => {
       return res.status(400).json({ message: "所有欄位都是必填的" });
     }
 
-    // step 3. 檢查重複的用戶名或電子郵件
+    // step 3. 檢查重複的電子郵件
     const existingUserQuery = await pool.query(
-      "SELECT * FROM users WHERE nickname = $1 OR email = $2",
-      [nickname, email]
+      "SELECT * FROM users WHERE email = $1",
+      [email]
     );
 
     if (existingUserQuery.rowCount > 0) {
-      return res.status(409).json({ message: "用戶名或電子郵件已存在" });
+      return res.status(409).json({ message: "電子郵件已存在" });
     }
 
-    // step 3. 密碼加密
-    const hashedPassword = await bcrypt.hash(password, 10);
 
     // step 4. 儲存用戶到 PostgreSQL
     try {
