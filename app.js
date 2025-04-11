@@ -238,8 +238,10 @@ app.post("/users", async (req, res) => {
       return res.status(409).json({ message: "電子郵件已存在" });
     }
 
+    // 雜湊密碼
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    // step 4. 儲存用戶到 PostgreSQL
+    // 儲存用戶到 PostgreSQL
     try {
       await pool.query(
         "INSERT INTO users (nickname, email, password) VALUES ($1, $2, $3)",
@@ -250,7 +252,7 @@ app.post("/users", async (req, res) => {
       return res.status(422).json({ message: "註冊失敗" });
     }
 
-    // step 5. 返回成功訊息
+    // step 6. 返回成功訊息
     res.status(201).json({ message: "註冊成功" });
   } catch (error) {
     console.error("註冊錯誤:", error);
